@@ -1,7 +1,7 @@
 # logging-effect-google
 > logging-effect handlers for google-logging and google-pubsub
 
-Handlers for [logging-effect](https://hackage.haskell.org/package/logging-effect) which can fetch logs to (Google Logging)[https://cloud.google.com/logging/] and to (Google PubSub)[https://cloud.google.com/pubsub].
+Handlers for [logging-effect](https://hackage.haskell.org/package/logging-effect) which can fetch logs to [Google Logging](https://cloud.google.com/logging/) and to [Google PubSub](https://cloud.google.com/pubsub).
 
 ## Installation
 
@@ -16,7 +16,7 @@ and add `logging-effect-google` to your `cabal` file.
 
 ## Usage example
 
-Here example how I use it with (wai)[https://hackage.haskell.org/package/wai] server on GCP. Additionally here used (wai-logging-effect-google)[https://github.com/d61h6k4/wai-logging-effect-google.git]. Here google logging handler used to store logs from wai and google pubsub handler to store events from clients.
+Here example how I use it with [wai](https://hackage.haskell.org/package/wai) server on GCP. Additionally here used [wai-logging-effect-google](https://github.com/d61h6k4/wai-logging-effect-google.git). Here google logging handler used to store logs from wai and google pubsub handler to store events from clients.
 
 ```haskell
 events
