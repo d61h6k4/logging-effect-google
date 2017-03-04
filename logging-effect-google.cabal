@@ -1,8 +1,8 @@
 name:                logging-effect-google
-version:             0.1.0.0
-synopsis:            Initial project template from stack
+version:             0.1.1.0
+synopsis:            logging-effect handlers for google-logging and google-pubsub
 description:         Please see README.md
-homepage:            https://github.com/dp-cylme/logging-effect-google#readme
+homepage:            https://github.com/d61h6k4/logging-effect-google#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Danil Petrov
@@ -18,13 +18,13 @@ library
   exposed-modules:     Control.Monad.Log.Handler
   build-depends:       base >= 4.7 && < 5
                      , text >= 1.2
-                     , gogol-logging >= 0.1
+                     , gogol-logging >= 0.2
                      , logging-effect >= 1.1
                      , exceptions >= 0.8
-                     , gogol >= 0.1
+                     , gogol >= 0.2
                      , retry >= 0.7
                      , lens >= 4.14
-                     , gogol-pubsub >= 0.1
+                     , gogol-pubsub >= 0.2
   default-language:    Haskell2010
 
 test-suite logging-effect-google-test
@@ -38,4 +38,4 @@ test-suite logging-effect-google-test
 
 source-repository head
   type:     git
-  location: https://github.com/dp-cylme/logging-effect-google
+  location: https://github.com/d61h6k4/logging-effect-google

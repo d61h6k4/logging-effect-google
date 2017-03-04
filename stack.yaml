@@ -3,5 +3,8 @@ extra-package-dbs: []
 packages:
 - '.'
 extra-deps:
-- logging-effect-1.1.0
-resolver: lts-7.4
+- gogol-0.2.0
+- gogol-core-0.2.0.1
+- gogol-logging-0.2.0
+- gogol-pubsub-0.2.0
+resolver: lts-8.3
