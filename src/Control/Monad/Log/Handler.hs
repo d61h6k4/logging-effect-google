@@ -6,10 +6,16 @@ Collections of different handler for use with MonadLog
 -}
 module Control.Monad.Log.Handler where
 
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
+
 import Control.Lens ((&), (.~))
-import Control.Retry (recovering, exponentialBackoff, logRetries, defaultLogMsg)
+import Control.Retry
+       (recovering, exponentialBackoff, logRetries, defaultLogMsg)
 import Data.Text (Text)
-import Network.Google (runResourceT, runGoogle, send, Error(TransportError, ServiceError))
+import Network.Google
+       (runResourceT, runGoogle, send,
+        Error(TransportError, ServiceError))
 import Network.Google.Logging
        (MonitoredResource, WriteLogEntriesRequestLabels, LogEntry,
         entriesWrite, writeLogEntriesRequest, wlerLogName, wlerLabels,
@@ -55,7 +61,7 @@ flushToGoogleLogging
     -> Maybe Text
     -> Maybe MonitoredResource
     -> Maybe WriteLogEntriesRequestLabels
-    -> [LogEntry]
+    -> NonEmpty LogEntry
     -> IO ()
 flushToGoogleLogging env logname resource labels entries =
     runResourceT
@@ -76,7 +82,7 @@ flushToGoogleLogging env logname resource labels entries =
                   (\_ ->
                         send
                             (entriesWrite
-                                 ((((writeLogEntriesRequest & wlerEntries .~ entries)
+                                 ((((writeLogEntriesRequest & wlerEntries .~ (NonEmpty.toList entries ))
                                                             & wlerLabels .~ labels)
                                                             & wlerResource .~ resource)
                                                             & wlerLogName .~ logname))) >>
@@ -110,7 +116,7 @@ flushToGooglePubSub
        ,HasEnv s r)
     => r
     -> Text
-    -> [PubsubMessage]
+    -> NonEmpty PubsubMessage
     -> IO ()
 flushToGooglePubSub env topic msgs =
     runResourceT
@@ -129,5 +135,5 @@ flushToGooglePubSub env topic msgs =
                         (\b e rs ->
                               liftIO (print (defaultLogMsg b e rs)))]
                   (\_ ->
-                        send (projectsTopicsPublish (publishRequest & prMessages .~ msgs) topic)) >>
+                        send (projectsTopicsPublish (publishRequest & prMessages .~ (NonEmpty.toList msgs )) topic)) >>
               return ()))
