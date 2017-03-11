@@ -21,12 +21,14 @@ import Network.Google.Logging
         entriesWrite, writeLogEntriesRequest, wlerLogName, wlerLabels,
         wlerResource, wlerEntries)
 import Network.Google.PubSub
-       (PubsubMessage, projectsTopicsPublish, publishRequest, prMessages)
+       (PubsubMessage, projectsTopicsPublish, publishRequest, prMessages, topic, projectsTopicsCreate)
 import Network.Google.Auth.Scope (HasScope', AllowScopes)
 import Network.Google.Env (HasEnv)
 import Control.Monad.Log (BatchingOptions, Handler, withBatchedHandler)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Control.Monad.Catch (MonadMask)
+import Control.Monad.Base (MonadBase)
+import Control.Monad.Trans.Resource (MonadBaseControl)
 
 
 -- | `withGoogleLoggingHandler` creates a new `Handler` for flash logs to
@@ -93,19 +95,19 @@ flushToGoogleLogging env logname resource labels entries =
 -- | `withGooglePubSubHandler` creates a new `Handler` for flash logs to
 -- <https://cloud.google.com/pubsub/ Google PubSub>
 withGooglePubSubHandler
-    :: (HasScope' s '["https://www.googleapis.com/auth/cloud-platform",
-                      "https://www.googleapis.com/auth/pubsub"] ~ 'True
-       ,AllowScopes s
-       ,HasEnv s r
-       ,MonadIO io
-       ,MonadMask io)
-    => BatchingOptions
-    -> r
-    -> Text
-    -> (Handler io PubsubMessage -> io a)
-    -> io a
-withGooglePubSubHandler options env topic =
-    withBatchedHandler options (flushToGooglePubSub env topic)
+  :: ( HasScope' s '[ "https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/pubsub"] ~ 'True
+     , AllowScopes s
+     , HasEnv s r
+     , MonadIO io
+     , MonadMask io
+     , MonadBase IO io
+     , MonadBaseControl IO io
+     )
+  => BatchingOptions -> r -> Text -> (Handler io PubsubMessage -> io a) -> io a
+withGooglePubSubHandler options env topicName handler =
+  runResourceT
+    (runGoogle env (send (projectsTopicsCreate topic topicName) >> return ())) >>
+  withBatchedHandler options (flushToGooglePubSub env topicName) handler
 
 
 -- | method for flash log to <https://cloud.google.com/pubsub/ Google PubSub>
@@ -118,22 +120,22 @@ flushToGooglePubSub
     -> Text
     -> NonEmpty PubsubMessage
     -> IO ()
-flushToGooglePubSub env topic msgs =
-    runResourceT
-        (runGoogle
-             env
-             (recovering
-                  (exponentialBackoff 15)
-                  [ logRetries
-                        (\(TransportError _) ->
-                              return False)
-                        (\b e rs ->
-                              liftIO (print (defaultLogMsg b e rs)))
-                  , logRetries
-                        (\(ServiceError _) ->
-                              return False)
-                        (\b e rs ->
-                              liftIO (print (defaultLogMsg b e rs)))]
-                  (\_ ->
-                        send (projectsTopicsPublish (publishRequest & prMessages .~ (NonEmpty.toList msgs )) topic)) >>
-              return ()))
+flushToGooglePubSub env topicName msgs =
+  runResourceT
+    (runGoogle
+       env
+       (recovering
+          (exponentialBackoff 15)
+          [ logRetries
+              (\(TransportError _) -> return False)
+              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
+          , logRetries
+              (\(ServiceError _) -> return False)
+              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
+          ]
+          (\_ ->
+             send
+               (projectsTopicsPublish
+                  (publishRequest & prMessages .~ (NonEmpty.toList msgs))
+                  topicName)) >>
+        return ()))
