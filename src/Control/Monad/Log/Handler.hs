@@ -18,8 +18,8 @@ import Network.Google
         Error(TransportError, ServiceError))
 import Network.Google.Logging
        (MonitoredResource, WriteLogEntriesRequestLabels, LogEntry,
-        entriesWrite, writeLogEntriesRequest, wlerLogName, wlerLabels,
-        wlerResource, wlerEntries)
+        entriesWrite, writeLogEntriesRequest, wlerLabels,
+        wlerEntries, leResource, leLogName)
 import Network.Google.PubSub
        (PubsubMessage, projectsTopicsPublish, publishRequest, prMessages, topic, projectsTopicsCreate)
 import Network.Google.Auth.Scope (HasScope', AllowScopes)
@@ -66,29 +66,30 @@ flushToGoogleLogging
     -> NonEmpty LogEntry
     -> IO ()
 flushToGoogleLogging env logname resource labels entries =
-    runResourceT
-        (runGoogle
-             env
-             (recovering
-                  (exponentialBackoff 15)
-                  [ logRetries
-                        (\(TransportError _) ->
-                              return False)
-                        (\b e rs ->
-                              liftIO (print (defaultLogMsg b e rs)))
-                  , logRetries
-                        (\(ServiceError _) ->
-                              return False)
-                        (\b e rs ->
-                              liftIO (print (defaultLogMsg b e rs)))]
-                  (\_ ->
-                        send
-                            (entriesWrite
-                                 ((((writeLogEntriesRequest & wlerEntries .~ (NonEmpty.toList entries ))
-                                                            & wlerLabels .~ labels)
-                                                            & wlerResource .~ resource)
-                                                            & wlerLogName .~ logname))) >>
-              return ()))
+  runResourceT
+    (runGoogle
+       env
+       (recovering
+          (exponentialBackoff 15)
+          [ logRetries
+              (\(TransportError _) -> return False)
+              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
+          , logRetries
+              (\(ServiceError _) -> return False)
+              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
+          ]
+          (\_ ->
+             send
+               (entriesWrite
+                  ((((writeLogEntriesRequest & wlerEntries .~
+                      (map
+                         (\entry ->
+                            ((entry & leLogName .~ logname) & leResource .~
+                             resource))
+                         (NonEmpty.toList entries)))) &
+                    wlerLabels .~
+                    labels)))) >>
+        return ()))
 
 
 
