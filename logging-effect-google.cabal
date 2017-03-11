@@ -1,5 +1,5 @@
 name:                logging-effect-google
-version:             0.1.1.0
+version:             1.2.0.0
 synopsis:            logging-effect handlers for google-logging and google-pubsub
 description:         Please see README.md
 homepage:            https://github.com/d61h6k4/logging-effect-google#readme
@@ -25,6 +25,8 @@ library
                      , retry >= 0.7
                      , lens >= 4.14
                      , gogol-pubsub >= 0.2
+                     , transformers-base >= 0.4
+                     , resourcet >= 1.1
   default-language:    Haskell2010
 
 test-suite logging-effect-google-test
