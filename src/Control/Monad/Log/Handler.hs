@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DataKinds #-}
@@ -15,7 +16,7 @@ import Control.Retry
 import Data.Text (Text)
 import Network.Google
        (runResourceT, runGoogle, send,
-        Error(TransportError, ServiceError))
+        Error(TransportError, ServiceError), ServiceError(..))
 import Network.Google.Logging
        (MonitoredResource, WriteLogEntriesRequestLabels, LogEntry,
         entriesWrite, writeLogEntriesRequest, wlerLabels,
@@ -26,9 +27,11 @@ import Network.Google.Auth.Scope (HasScope', AllowScopes)
 import Network.Google.Env (HasEnv)
 import Control.Monad.Log (BatchingOptions, Handler, withBatchedHandler)
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import Control.Monad.Catch (MonadMask)
+import Control.Monad.Catch
+       (MonadMask, MonadCatch(catch), MonadThrow(throwM))
 import Control.Monad.Base (MonadBase)
 import Control.Monad.Trans.Resource (MonadBaseControl)
+import Network.HTTP.Types.Status (Status(..))
 
 
 -- | `withGoogleLoggingHandler` creates a new `Handler` for flash logs to
@@ -107,7 +110,14 @@ withGooglePubSubHandler
   => BatchingOptions -> r -> Text -> (Handler io PubsubMessage -> io a) -> io a
 withGooglePubSubHandler options env topicName handler =
   runResourceT
-    (runGoogle env (send (projectsTopicsCreate topic topicName) >> return ())) >>
+    (runGoogle
+       env
+       (catch
+          (send (projectsTopicsCreate topic topicName) >> return ())
+          (\(ServiceError se) ->
+             if statusCode ( _serviceStatus se) == 409
+               then return ()
+               else throwM (ServiceError se)))) >>
   withBatchedHandler options (flushToGooglePubSub env topicName) handler
 
 
