@@ -19,7 +19,7 @@ import Control.Retry
 import Data.Text (Text)
 import Network.Google
        (runResourceT, runGoogle, send,
-        Error(TransportError, ServiceError), ServiceError(..))
+        Error(TransportError, ServiceError, SerializeError), ServiceError(..))
 import Network.Google.Logging
        (MonitoredResource, WriteLogEntriesRequestLabels, LogEntry,
         entriesWrite, writeLogEntriesRequest, wlerLabels,
@@ -82,6 +82,9 @@ flushToGoogleLogging env logname resource labels entries = do
               (\(TransportError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
+              (\(SerializeError _) -> return False)
+              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
+          , logRetries
               (\(ServiceError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
@@ -97,7 +100,8 @@ flushToGoogleLogging env logname resource labels entries = do
                             (entry & leLogName %~
                              (Just . (maybe (fromMaybe "" logname) id)) &
                              leResource %~
-                             (Just . maybe (fromMaybe monitoredResource resource) id)))
+                             (Just .
+                              maybe (fromMaybe monitoredResource resource) id)))
                          (NonEmpty.toList entries)))) &
                     wlerLabels .~
                     labels)))) >>
