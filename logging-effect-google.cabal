@@ -1,5 +1,5 @@
 name:                logging-effect-google
-version:             1.4.2.0
+version:             1.4.2.1
 synopsis:            logging-effect handlers for google-logging and google-pubsub
 description:         Please see README.md
 homepage:            https://github.com/d61h6k4/logging-effect-google#readme

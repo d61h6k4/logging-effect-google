@@ -13,7 +13,7 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Control.Exception (SomeException(..))
-import Control.Lens ((&), (.~), non)
+import Control.Lens ((&), (.~), (%~))
 import Control.Retry
        (recovering, exponentialBackoff, logRetries, defaultLogMsg)
 import Data.Text (Text)
@@ -23,9 +23,10 @@ import Network.Google
 import Network.Google.Logging
        (MonitoredResource, WriteLogEntriesRequestLabels, LogEntry,
         entriesWrite, writeLogEntriesRequest, wlerLabels,
-        wlerEntries, leResource, leLogName)
+        wlerEntries, leResource, leLogName, monitoredResource)
 import Network.Google.PubSub
-       (PubsubMessage, projectsTopicsPublish, publishRequest, prMessages, topic, projectsTopicsCreate)
+       (PubsubMessage, projectsTopicsPublish, publishRequest, prMessages,
+        topic, projectsTopicsCreate)
 import Network.Google.Auth.Scope (HasScope', AllowScopes)
 import Network.Google.Env (HasEnv)
 import Control.Monad.Log (BatchingOptions, Handler, withBatchedHandler)
@@ -72,11 +73,6 @@ flushToGoogleLogging
     -> NonEmpty LogEntry
     -> IO ()
 flushToGoogleLogging env logname resource labels entries = do
-  let setLogName :: Maybe Text -> LogEntry -> LogEntry
-      setLogName Nothing e = e
-      setLogName logname' e = e & leLogName .~ logname'
-      setResource Nothing e = e
-      setResource resource' e = e & leResource .~ resource'
   runResourceT
     (runGoogle
        env
@@ -98,7 +94,10 @@ flushToGoogleLogging env logname resource labels entries = do
                   ((((writeLogEntriesRequest & wlerEntries .~
                       (map
                          (\entry ->
-                            (setLogName logname (setResource resource entry)))
+                            (entry & leLogName %~
+                             (Just . (maybe (fromMaybe "" logname) id)) &
+                             leResource %~
+                             (Just . maybe (fromMaybe monitoredResource resource) id)))
                          (NonEmpty.toList entries)))) &
                     wlerLabels .~
                     labels)))) >>
