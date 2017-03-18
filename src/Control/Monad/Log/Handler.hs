@@ -12,7 +12,7 @@ import Data.Maybe (fromMaybe)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Control.Exception (SomeException(..))
+import Control.Exception (SomeException)
 import Control.Lens ((&), (.~), (%~))
 import Control.Retry
        (recovering, exponentialBackoff, logRetries, defaultLogMsg)
@@ -85,7 +85,7 @@ flushToGoogleLogging env logname resource labels entries = do
               (\(ServiceError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
-              (\(SomeException _) -> return False)
+              (\(e :: SomeException) -> return False)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           ]
           (\_ ->
@@ -153,7 +153,7 @@ flushToGooglePubSub env topicName msgs =
               (\(ServiceError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
-              (\(SomeException _) -> return False)
+              (\(e :: SomeException) -> return False)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           ]
           (\_ ->
