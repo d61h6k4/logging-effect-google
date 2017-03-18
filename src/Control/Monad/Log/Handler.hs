@@ -19,7 +19,8 @@ import Control.Retry
 import Data.Text (Text)
 import Network.Google
        (runResourceT, runGoogle, send,
-        Error(TransportError, ServiceError, SerializeError), ServiceError(..))
+        Error(TransportError, ServiceError, SerializeError),
+        ServiceError(_serviceStatus))
 import Network.Google.Logging
        (MonitoredResource, WriteLogEntriesRequestLabels, LogEntry,
         entriesWrite, writeLogEntriesRequest, wlerLabels,
@@ -79,13 +80,17 @@ flushToGoogleLogging env logname resource labels entries = do
        (recovering
           (exponentialBackoff 15)
           [ logRetries
+              (\(ServiceError se) ->
+                 if statusCode (_serviceStatus se) >= 400 &&
+                    statusCode (_serviceStatus se) < 500
+                   then return False
+                   else return True)
+              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
+          , logRetries
               (\(TransportError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
               (\(SerializeError _) -> return False)
-              (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
-          , logRetries
-              (\(ServiceError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
               (\(e :: SomeException) -> return False)
@@ -151,10 +156,14 @@ flushToGooglePubSub env topicName msgs =
        (recovering
           (exponentialBackoff 15)
           [ logRetries
-              (\(TransportError _) -> return True)
+              (\(ServiceError se) ->
+                 if statusCode (_serviceStatus se) >= 400 &&
+                    statusCode (_serviceStatus se) < 500
+                   then return False
+                   else return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
-              (\(ServiceError _) -> return True)
+              (\(TransportError _) -> return True)
               (\b e rs -> liftIO (print (defaultLogMsg b e rs)))
           , logRetries
               (\(e :: SomeException) -> return False)
