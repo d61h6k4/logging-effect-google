@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -7,11 +8,12 @@ Collections of different handler for use with MonadLog
 -}
 module Control.Monad.Log.Handler where
 
+import Data.Maybe (fromMaybe)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Control.Exception (SomeException(..))
-import Control.Lens ((&), (.~))
+import Control.Lens ((&), (.~), non)
 import Control.Retry
        (recovering, exponentialBackoff, logRetries, defaultLogMsg)
 import Data.Text (Text)
@@ -69,7 +71,12 @@ flushToGoogleLogging
     -> Maybe WriteLogEntriesRequestLabels
     -> NonEmpty LogEntry
     -> IO ()
-flushToGoogleLogging env logname resource labels entries =
+flushToGoogleLogging env logname resource labels entries = do
+  let setLogName :: Maybe Text -> LogEntry -> LogEntry
+      setLogName Nothing e = e
+      setLogName logname' e = e & leLogName .~ logname'
+      setResource Nothing e = e
+      setResource resource' e = e & leResource .~ resource'
   runResourceT
     (runGoogle
        env
@@ -91,8 +98,7 @@ flushToGoogleLogging env logname resource labels entries =
                   ((((writeLogEntriesRequest & wlerEntries .~
                       (map
                          (\entry ->
-                            ((entry & leLogName .~ logname) & leResource .~
-                             resource))
+                            (setLogName logname (setResource resource entry)))
                          (NonEmpty.toList entries)))) &
                     wlerLabels .~
                     labels)))) >>
